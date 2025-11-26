@@ -1,0 +1,127 @@
+# Kaggle Daily Blog Configuration
+
+# Competition Selection Criteria
+competition_selection:
+  top_n: 10
+  ranking_weights:
+    prize_money: 0.3
+    participants: 0.25
+    complexity: 0.25
+    industry_relevance: 0.2
+
+  complexity_indicators:
+    - "multi-modal"
+    - "time-series"
+    - "nlp"
+    - "computer-vision"
+    - "tabular"
+    - "reinforcement-learning"
+
+  industries:
+    - "healthcare"
+    - "finance"
+    - "retail"
+    - "manufacturing"
+    - "transportation"
+    - "energy"
+    - "agriculture"
+    - "education"
+
+# GitHub Repository Discovery
+github:
+  max_repos_per_competition: 5
+  min_stars: 10
+  sort_by: "stars"
+  search_algorithms:
+    - "xgboost"
+    - "lightgbm"
+    - "catboost"
+    - "neural-network"
+    - "transformer"
+    - "lstm"
+    - "cnn"
+    - "ensemble"
+    - "random-forest"
+    - "gradient-boosting"
+
+# Research Papers
+research:
+  sources:
+    - "arxiv"
+    - "papers-with-code"
+  max_papers: 5
+  days_lookback: 7
+  relevant_categories:
+    - "cs.LG"  # Machine Learning
+    - "cs.CV"  # Computer Vision
+    - "cs.CL"  # Computation and Language
+    - "cs.AI"  # Artificial Intelligence
+    - "stat.ML"  # Statistics - Machine Learning
+
+# Blog Generation
+blog:
+  output_dir: "blogs"
+  file_format: "{year}/{month:02d}/{day:02d}-kaggle-summary"
+  generate_markdown: true
+  generate_html: true
+
+  sections:
+    - name: "Competition Overview"
+      enabled: true
+    - name: "Leaderboard Highlights"
+      enabled: true
+    - name: "Algorithm Summaries"
+      enabled: true
+    - name: "Research Papers"
+      enabled: true
+    - name: "GitHub Repositories"
+      enabled: true
+    - name: "New Competitions"
+      enabled: true
+    - name: "Predicted Trends"
+      enabled: true
+    - name: "ML Research Papers"
+      enabled: true
+
+# Gemini AI Configuration
+gemini:
+  model: "gemini-pro"
+  temperature: 0.7
+  max_tokens: 8000
+  retry_attempts: 3
+  retry_delay: 2
+
+# Scheduling
+schedule:
+  timezone: "America/New_York"  # EST
+  run_time: "07:00"
+
+# Error Handling
+error_handling:
+  max_retries: 3
+  retry_delay: 300  # 5 minutes
+  send_email_on_failure: true
+  create_github_issue: true
+
+# Notifications
+notifications:
+  email:
+    enabled: true
+    subject_prefix: "[Kaggle Blog]"
+  github_issue:
+    enabled: true
+    labels:
+      - "automation"
+      - "blog-generation"
+      - "error"
+
+# Data Collection
+data_collection:
+  kaggle:
+    cache_duration: 3600  # 1 hour
+    include_kernels: true
+    max_kernels_per_competition: 10
+
+  leaderboard:
+    track_changes: true
+    snapshot_interval: 86400  # 24 hours
