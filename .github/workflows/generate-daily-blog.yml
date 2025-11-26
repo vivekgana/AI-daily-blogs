@@ -91,29 +91,24 @@ jobs:
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];
-            const issue = await github.rest.issues.create({
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Blog Generation Failed - ${date}`,
-              body: `## Blog Generation Error
-
-**Date:** ${date}
-**Workflow Run:** https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
-
-The automated blog generation process failed. Please check the workflow logs for details.
-
-### Actions Taken
-- ✅ Email notification sent
-- ✅ This issue created
-
-### Next Steps
-1. Review the workflow logs
-2. Check API credentials and rate limits
-3. Verify all required secrets are set
-4. Re-run the workflow manually if needed
-
----
-*This issue was automatically created by the blog generation workflow.*`,
+              title: 'Blog Generation Failed - ' + date,
+              body: '## Blog Generation Error\n\n' +
+                    'Date: ' + date + '\n' +
+                    'Workflow Run: https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + '\n\n' +
+                    'The automated blog generation process failed. Please check the workflow logs for details.\n\n' +
+                    '### Actions Taken\n' +
+                    '- Email notification sent\n' +
+                    '- This issue created\n\n' +
+                    '### Next Steps\n' +
+                    '1. Review the workflow logs\n' +
+                    '2. Check API credentials and rate limits\n' +
+                    '3. Verify all required secrets are set\n' +
+                    '4. Re-run the workflow manually if needed\n\n' +
+                    '---\n' +
+                    '*This issue was automatically created by the blog generation workflow.*',
               labels: ['automation', 'blog-generation', 'error']
             });
 
