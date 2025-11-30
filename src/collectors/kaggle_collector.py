@@ -199,21 +199,32 @@ class KaggleCollector:
             leaderboard = self.api.competition_leaderboard_view(competition_id)
 
             if leaderboard:
-                df = pd.DataFrame([
-                    {
-                        'rank': entry.teamId,
-                        'teamName': entry.teamName,
-                        'score': entry.score,
-                        'submissionDate': entry.submissionDate
-                    }
-                    for entry in leaderboard
-                ])
-                return df
+                entries = []
+                for entry in leaderboard:
+                    try:
+                        entries.append({
+                            'rank': entry.teamId if hasattr(entry, 'teamId') else 0,
+                            'teamName': entry.teamName if hasattr(entry, 'teamName') else 'Unknown',
+                            'score': entry.score if hasattr(entry, 'score') else 0.0,
+                            'submissionDate': entry.submissionDate if hasattr(entry, 'submissionDate') else None
+                        })
+                    except Exception as entry_error:
+                        logger.debug(f"Error processing leaderboard entry: {entry_error}")
+                        continue
 
-            return None
+                if entries:
+                    df = pd.DataFrame(entries)
+                    logger.info(f"Successfully fetched {len(entries)} leaderboard entries for {competition_id}")
+                    return df
+                else:
+                    logger.warning(f"No valid leaderboard entries found for {competition_id}")
+                    return None
+            else:
+                logger.info(f"No leaderboard data available for {competition_id} (may be private or unavailable)")
+                return None
 
         except Exception as e:
-            logger.warning(f"Could not fetch leaderboard for {competition_id}: {e}")
+            logger.warning(f"Could not fetch leaderboard for {competition_id}: {type(e).__name__}: {e}")
             return None
 
     def get_competition_kernels(self, competition_id: str, max_kernels: int = 10) -> List[Dict[str, Any]]:
@@ -232,20 +243,28 @@ class KaggleCollector:
 
             kernel_list = []
             for kernel in kernels[:max_kernels]:
-                kernel_dict = {
-                    'title': kernel.title,
-                    'author': kernel.author,
-                    'url': f"https://www.kaggle.com{kernel.ref}",
-                    'votes': kernel.voteCount,
-                    'language': kernel.language if hasattr(kernel, 'language') else 'Unknown'
-                }
-                kernel_list.append(kernel_dict)
+                try:
+                    kernel_dict = {
+                        'title': kernel.title if hasattr(kernel, 'title') else 'Untitled',
+                        'author': kernel.author if hasattr(kernel, 'author') else 'Unknown',
+                        'url': f"https://www.kaggle.com{kernel.ref}" if hasattr(kernel, 'ref') else '',
+                        'votes': kernel.voteCount if hasattr(kernel, 'voteCount') else 0,
+                        'language': kernel.language if hasattr(kernel, 'language') else 'Unknown'
+                    }
+                    kernel_list.append(kernel_dict)
+                except Exception as kernel_error:
+                    logger.debug(f"Error processing kernel: {kernel_error}")
+                    continue
 
-            logger.info(f"Found {len(kernel_list)} kernels")
+            if kernel_list:
+                logger.info(f"Found {len(kernel_list)} kernels for {competition_id}")
+            else:
+                logger.info(f"No kernels found for {competition_id} (may have no public kernels yet)")
+
             return kernel_list
 
         except Exception as e:
-            logger.warning(f"Could not fetch kernels for {competition_id}: {e}")
+            logger.warning(f"Could not fetch kernels for {competition_id}: {type(e).__name__}: {e}")
             return []
 
     def get_new_competitions(self, days: int = 1) -> List[Dict[str, Any]]:

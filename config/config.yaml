@@ -50,7 +50,7 @@ research:
     - "arxiv"
     - "papers-with-code"
   max_papers: 5
-  days_lookback: 7
+  days_lookback: 30  # Increased from 7 to 30 for better paper coverage
   relevant_categories:
     - "cs.LG"  # Machine Learning
     - "cs.CV"  # Computer Vision
