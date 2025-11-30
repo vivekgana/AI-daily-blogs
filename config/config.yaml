@@ -85,7 +85,7 @@ blog:
 
 # Gemini AI Configuration
 gemini:
-  model: "gemini-pro"
+  model: "gemini-1.5-flash"  # Updated from deprecated "gemini-pro" to current model
   temperature: 0.7
   max_tokens: 8000
   retry_attempts: 3
