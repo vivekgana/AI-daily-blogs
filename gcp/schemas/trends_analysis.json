@@ -1,0 +1,56 @@
+[
+  {
+    "name": "trend_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the trend"
+  },
+  {
+    "name": "trend_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the identified trend"
+  },
+  {
+    "name": "start_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "When the trend was first detected"
+  },
+  {
+    "name": "end_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "When the trend ended (if applicable)"
+  },
+  {
+    "name": "paper_count",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of papers associated with this trend"
+  },
+  {
+    "name": "confidence_score",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Confidence in the trend identification (0-1)"
+  },
+  {
+    "name": "impact_level",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Impact level (low, medium, high, critical)"
+  },
+  {
+    "name": "keywords",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Keywords associated with the trend"
+  },
+  {
+    "name": "detected_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the trend was detected"
+  }
+]

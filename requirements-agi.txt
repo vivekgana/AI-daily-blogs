@@ -1,0 +1,47 @@
+# AGI/ASI Research Platform Additional Dependencies
+
+# GCP Services
+google-cloud-storage==2.14.0
+google-cloud-firestore==2.14.0
+google-cloud-bigquery==3.14.0
+google-cloud-pubsub==2.19.0
+google-cloud-aiplatform==1.39.0
+google-cloud-secret-manager==2.17.0
+google-cloud-logging==3.9.0
+
+# AI/ML APIs
+anthropic==0.8.1
+google-generativeai==0.3.2
+
+# Web Scraping & Data Collection
+scholarly==1.7.11
+feedparser==6.0.11
+newspaper3k==0.2.8
+
+# PDF Processing
+pypdf2==3.0.1
+pdfplumber==0.10.3
+pdf2image==1.17.0
+
+# API Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+gunicorn==21.2.0
+pydantic==2.5.3
+
+# Async & Performance
+aiohttp==3.9.1
+asyncio==3.4.3
+tenacity==8.2.3
+
+# Data Processing & Analysis
+scikit-learn==1.4.0
+spacy==3.7.2
+nltk==3.8.1
+transformers==4.36.2
+
+# Utilities
+python-multipart==0.0.6
+httpx==0.26.0
+tqdm==4.66.1
+colorama==0.4.6

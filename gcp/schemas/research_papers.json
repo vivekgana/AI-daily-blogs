@@ -1,0 +1,86 @@
+[
+  {
+    "name": "paper_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the research paper"
+  },
+  {
+    "name": "title",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Title of the research paper"
+  },
+  {
+    "name": "authors",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "List of authors"
+  },
+  {
+    "name": "abstract",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Paper abstract"
+  },
+  {
+    "name": "published_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Publication date"
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Source of the paper (arxiv, scholar, etc.)"
+  },
+  {
+    "name": "categories",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Research categories"
+  },
+  {
+    "name": "agi_relevance_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "AGI relevance score (0-10)"
+  },
+  {
+    "name": "asi_relevance_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "ASI relevance score (0-10)"
+  },
+  {
+    "name": "breakthrough_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Breakthrough significance score (0-1)"
+  },
+  {
+    "name": "citations_count",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Number of citations"
+  },
+  {
+    "name": "keywords",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Key concepts and terms"
+  },
+  {
+    "name": "analyzed_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When the analysis was completed"
+  },
+  {
+    "name": "ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the paper was ingested"
+  }
+]
