@@ -201,64 +201,55 @@ class KaggleCollector:
         try:
             logger.info(f"Fetching leaderboard for {competition_id}...")
 
-            # Try the download method first (more reliable for public leaderboards)
-            try:
-                leaderboard = self.api.competition_leaderboard_download(competition_id)
-                if leaderboard and len(leaderboard) > 0:
-                    # leaderboard is already a list of items
-                    entries = []
-                    for entry in leaderboard[:100]:  # Limit to top 100
-                        try:
-                            entries.append({
-                                'rank': entry.get('teamId', 0) if isinstance(entry, dict) else (entry.teamId if hasattr(entry, 'teamId') else 0),
-                                'teamName': entry.get('teamName', 'Unknown') if isinstance(entry, dict) else (entry.teamName if hasattr(entry, 'teamName') else 'Unknown'),
-                                'score': entry.get('score', 0.0) if isinstance(entry, dict) else (entry.score if hasattr(entry, 'score') else 0.0),
-                                'submissionDate': entry.get('submissionDate') if isinstance(entry, dict) else (entry.submissionDate if hasattr(entry, 'submissionDate') else None)
-                            })
-                        except Exception as entry_error:
-                            logger.debug(f"Error processing leaderboard entry: {entry_error}")
-                            continue
-
-                    if entries:
-                        df = pd.DataFrame(entries)
-                        logger.info(f"Successfully fetched {len(entries)} leaderboard entries for {competition_id}")
-                        return df
-            except Exception as download_error:
-                logger.debug(f"Download method failed for {competition_id}: {download_error}")
-                # Try the view method as fallback
-                pass
-
-            # Fallback to view method
             leaderboard = self.api.competition_leaderboard_view(competition_id)
 
-            if leaderboard and len(leaderboard) > 0:
-                entries = []
-                for entry in leaderboard[:100]:  # Limit to top 100
-                    try:
-                        entries.append({
-                            'rank': entry.teamId if hasattr(entry, 'teamId') else 0,
-                            'teamName': entry.teamName if hasattr(entry, 'teamName') else 'Unknown',
-                            'score': entry.score if hasattr(entry, 'score') else 0.0,
-                            'submissionDate': entry.submissionDate if hasattr(entry, 'submissionDate') else None
-                        })
-                    except Exception as entry_error:
-                        logger.debug(f"Error processing leaderboard entry: {entry_error}")
-                        continue
+            if not leaderboard:
+                logger.info(f"No public leaderboard available for {competition_id}")
+                return None
 
-                if entries:
-                    df = pd.DataFrame(entries)
-                    logger.info(f"Successfully fetched {len(entries)} leaderboard entries for {competition_id}")
-                    return df
+            if not hasattr(leaderboard, '__iter__'):
+                logger.warning(f"Unexpected leaderboard format for {competition_id}")
+                return None
 
-            logger.info(f"No public leaderboard available for {competition_id} (may be private or require enrollment)")
-            return None
+            entries = []
+            for entry in list(leaderboard)[:100]:  # Limit to top 100
+                try:
+                    # Handle both dict and object formats
+                    if isinstance(entry, dict):
+                        entry_data = {
+                            'rank': entry.get('teamId', 0),
+                            'teamName': entry.get('teamName', 'Unknown'),
+                            'score': entry.get('score', 0.0),
+                            'submissionDate': entry.get('submissionDate')
+                        }
+                    else:
+                        entry_data = {
+                            'rank': getattr(entry, 'teamId', 0),
+                            'teamName': getattr(entry, 'teamName', 'Unknown'),
+                            'score': getattr(entry, 'score', 0.0),
+                            'submissionDate': getattr(entry, 'submissionDate', None)
+                        }
+                    entries.append(entry_data)
+                except Exception as entry_error:
+                    logger.debug(f"Error processing leaderboard entry: {entry_error}")
+                    continue
+
+            if entries:
+                df = pd.DataFrame(entries)
+                logger.info(f"Successfully fetched {len(entries)} leaderboard entries for {competition_id}")
+                return df
+            else:
+                logger.info(f"No valid leaderboard entries for {competition_id}")
+                return None
 
         except Exception as e:
             error_msg = str(e).lower()
             if '403' in error_msg or 'forbidden' in error_msg:
                 logger.info(f"Leaderboard for {competition_id} is private or requires enrollment")
             elif '404' in error_msg or 'not found' in error_msg:
-                logger.info(f"Leaderboard for {competition_id} not found (may not exist yet)")
+                logger.info(f"Leaderboard for {competition_id} not found (competition may not have one yet)")
+            elif 'not authorized' in error_msg or 'must accept' in error_msg:
+                logger.info(f"Leaderboard for {competition_id} requires accepting competition rules")
             else:
                 logger.warning(f"Could not fetch leaderboard for {competition_id}: {type(e).__name__}: {e}")
             return None
