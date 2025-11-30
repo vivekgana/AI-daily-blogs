@@ -148,14 +148,18 @@ class BlogGenerator:
         leaderboard_analyses = []
         for comp in data['competitions'][:3]:
             comp_id = comp['id']
-            if comp_id in data['leaderboards']:
+            if comp_id in data['leaderboards'] and data['leaderboards'][comp_id] is not None:
                 analysis = self.gemini_generator.generate_leaderboard_analysis(
                     comp,
                     data['leaderboards'][comp_id]
                 )
                 leaderboard_analyses.append(f"**{comp['title']}:**\n{analysis}")
 
-        sections['leaderboard'] = "\n\n".join(leaderboard_analyses) if leaderboard_analyses else "No leaderboard data available."
+        if leaderboard_analyses:
+            sections['leaderboard'] = "\n\n".join(leaderboard_analyses)
+        else:
+            sections['leaderboard'] = ("Most competition leaderboards are currently private or require enrollment to view. "
+                                       "Check individual competition pages on Kaggle for the latest standings.")
 
         # Algorithm Summaries
         algorithm_summaries = []
