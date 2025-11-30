@@ -67,38 +67,54 @@ class GitHubCollector:
                 )
 
                 # Get top results
-                for repo in repos[:5]:
-                    if repo.full_name in seen_repos:
+                repo_count = 0
+                for repo in repos:
+                    if repo_count >= 5:  # Limit per algorithm
+                        break
+
+                    try:
+                        if repo.full_name in seen_repos:
+                            continue
+
+                        stars = repo.stargazers_count if hasattr(repo, 'stargazers_count') else 0
+                        if stars >= min_stars:
+                            repo_dict = {
+                                'name': repo.name if hasattr(repo, 'name') else 'Unknown',
+                                'full_name': repo.full_name if hasattr(repo, 'full_name') else 'Unknown',
+                                'url': repo.html_url if hasattr(repo, 'html_url') else '',
+                                'description': repo.description if hasattr(repo, 'description') and repo.description else 'No description',
+                                'stars': stars,
+                                'language': repo.language if hasattr(repo, 'language') and repo.language else 'Unknown',
+                                'updated_at': repo.updated_at.isoformat() if hasattr(repo, 'updated_at') and repo.updated_at else None,
+                                'algorithm': algorithm
+                            }
+                            all_repos.append(repo_dict)
+                            seen_repos.add(repo.full_name)
+                            repo_count += 1
+
+                            if len(all_repos) >= max_repos:
+                                break
+                    except Exception as repo_error:
+                        logger.debug(f"Error processing repository: {repo_error}")
                         continue
 
-                    if repo.stargazers_count >= min_stars:
-                        repo_dict = {
-                            'name': repo.name,
-                            'full_name': repo.full_name,
-                            'url': repo.html_url,
-                            'description': repo.description or 'No description',
-                            'stars': repo.stargazers_count,
-                            'language': repo.language or 'Unknown',
-                            'updated_at': repo.updated_at.isoformat() if repo.updated_at else None,
-                            'algorithm': algorithm
-                        }
-                        all_repos.append(repo_dict)
-                        seen_repos.add(repo.full_name)
-
-                        if len(all_repos) >= max_repos:
-                            break
-
             except GithubException as e:
-                logger.warning(f"GitHub API error for '{algorithm}': {e}")
+                logger.warning(f"GitHub API error for '{algorithm}': {e.status if hasattr(e, 'status') else 'unknown'} - {e}")
+                continue
+            except Exception as e:
+                logger.warning(f"Unexpected error searching for '{algorithm}': {type(e).__name__}: {e}")
                 continue
 
             if len(all_repos) >= max_repos:
                 break
 
         # Sort by stars
-        all_repos.sort(key=lambda x: x['stars'], reverse=True)
+        if all_repos:
+            all_repos.sort(key=lambda x: x.get('stars', 0), reverse=True)
+            logger.info(f"Found {len(all_repos)} relevant repositories")
+        else:
+            logger.info(f"No repositories found for {competition_name}")
 
-        logger.info(f"Found {len(all_repos)} relevant repositories")
         return all_repos[:max_repos]
 
     def get_trending_ml_repos(self, days: int = 7) -> List[Dict[str, Any]]:

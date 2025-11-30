@@ -291,18 +291,40 @@ Generate predictions covering:
         max_retries = self.config.get('gemini.retry_attempts', 3)
         retry_delay = self.config.get('gemini.retry_delay', 2)
 
+        last_error = None
         for attempt in range(max_retries):
             try:
+                logger.debug(f"Attempt {attempt + 1}/{max_retries} for content generation")
                 response = self.model.generate_content(prompt)
-                return response.text
+
+                # Check if response has text
+                if hasattr(response, 'text') and response.text:
+                    logger.debug(f"Content generated successfully on attempt {attempt + 1}")
+                    return response.text
+                elif hasattr(response, 'parts'):
+                    # Handle response with parts
+                    text = ''.join(part.text for part in response.parts if hasattr(part, 'text'))
+                    if text:
+                        logger.debug(f"Content generated from parts on attempt {attempt + 1}")
+                        return text
+                else:
+                    logger.warning(f"Response has no text content on attempt {attempt + 1}")
+                    last_error = "Response has no text content"
+
+            except AttributeError as e:
+                # Handle blocked content or missing text attribute
+                logger.warning(f"Generation attempt {attempt + 1} - AttributeError (possibly blocked content): {e}")
+                last_error = f"AttributeError: {str(e)}"
 
             except Exception as e:
-                logger.warning(f"Generation attempt {attempt + 1} failed: {e}")
+                logger.warning(f"Generation attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+                last_error = f"{type(e).__name__}: {str(e)}"
 
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay * (attempt + 1))
-                else:
-                    logger.error(f"All generation attempts failed for prompt")
-                    return f"[Content generation failed after {max_retries} attempts]"
+            if attempt < max_retries - 1:
+                sleep_time = retry_delay * (attempt + 1)
+                logger.info(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
 
-        return "[Content generation failed]"
+        # All attempts failed
+        logger.error(f"All {max_retries} generation attempts failed. Last error: {last_error}")
+        return f"[Content generation failed after {max_retries} attempts. Error: {last_error}]"
