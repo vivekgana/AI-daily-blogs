@@ -28,10 +28,24 @@ class GeminiGenerator:
 
         genai.configure(api_key=api_key)
 
-        model_name = config.get('gemini.model', 'gemini-pro')
-        self.model = genai.GenerativeModel(model_name)
+        # Use the latest Gemini model names
+        model_name = config.get('gemini.model', 'gemini-1.5-flash')
 
-        logger.info(f"Gemini AI initialized with model: {model_name}")
+        # Validate model name
+        valid_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        if model_name not in valid_models:
+            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash'")
+            model_name = 'gemini-1.5-flash'
+
+        try:
+            self.model = genai.GenerativeModel(model_name)
+            logger.info(f"Gemini AI initialized successfully with model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini model '{model_name}': {e}")
+            # Fallback to gemini-1.5-flash
+            model_name = 'gemini-1.5-flash'
+            self.model = genai.GenerativeModel(model_name)
+            logger.info(f"Fell back to model: {model_name}")
 
     def generate_competition_overview(
         self,
@@ -293,16 +307,53 @@ Generate predictions covering:
 
         for attempt in range(max_retries):
             try:
-                response = self.model.generate_content(prompt)
-                return response.text
+                # Add generation config for better control
+                generation_config = {
+                    'temperature': self.config.get('gemini.temperature', 0.7),
+                    'max_output_tokens': self.config.get('gemini.max_tokens', 8000),
+                }
+
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+
+                # Check if response has text
+                if response and hasattr(response, 'text') and response.text:
+                    logger.debug(f"Generation successful on attempt {attempt + 1}")
+                    return response.text
+                else:
+                    logger.warning(f"Empty response on attempt {attempt + 1}")
+                    raise ValueError("Empty response from Gemini API")
+
+            except AttributeError as e:
+                logger.error(f"Response structure error on attempt {attempt + 1}: {e}")
+                logger.error(f"Response object: {response if 'response' in locals() else 'None'}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    return f"[Content generation failed: Invalid response structure]"
 
             except Exception as e:
-                logger.warning(f"Generation attempt {attempt + 1} failed: {e}")
+                error_msg = str(e)
+                logger.warning(f"Generation attempt {attempt + 1}/{max_retries} failed: {error_msg}")
+
+                # Check for specific errors
+                if "API key" in error_msg or "authentication" in error_msg.lower():
+                    logger.error("Authentication error - check GEMINI_API_KEY")
+                    return "[Content generation failed: Authentication error]"
+
+                if "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
+                    logger.warning("Rate limit or quota exceeded")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay * (attempt + 1) * 2)  # Longer delay for rate limits
+                    else:
+                        return "[Content generation failed: Rate limit exceeded]"
 
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (attempt + 1))
                 else:
-                    logger.error(f"All generation attempts failed for prompt")
-                    return f"[Content generation failed after {max_retries} attempts]"
+                    logger.error(f"All {max_retries} generation attempts failed")
+                    return f"[Content generation failed after {max_retries} attempts: {error_msg}]"
 
         return "[Content generation failed]"
