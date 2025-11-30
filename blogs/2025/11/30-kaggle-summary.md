@@ -6,7 +6,7 @@
 
 ## 📊 Competition Overview - Top 10
 
-[Content generation failed after 3 attempts]
+[Content generation failed after 3 attempts. Error: NotFound: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.]
 
 ### Featured Competitions
 
@@ -54,13 +54,13 @@ No new competitions launched in the last 24 hours.
 
 ## 🔮 Predicted Trends
 
-[Content generation failed after 3 attempts]
+[Content generation failed after 3 attempts. Error: NotFound: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.]
 
 ---
 
 ## 🔬 Latest ML Research
 
-No recent relevant research papers found.
+[Content generation failed after 3 attempts. Error: NotFound: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.]
 
 ---
 
@@ -70,6 +70,6 @@ This daily blog was automatically generated to track the top Kaggle competitions
 
 ---
 
-*Generated on 2025-11-30 at 02:36 UTC*
+*Generated on 2025-11-30 at 03:43 UTC*
 
 *Powered by Google Gemini AI | Data from Kaggle, GitHub, and arXiv*
