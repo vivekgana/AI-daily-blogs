@@ -27,59 +27,73 @@ class ResearchCollector:
         self,
         query: str = "machine learning kaggle",
         max_results: int = 5,
-        days_lookback: int = 7
+        days_lookback: int = 30
     ) -> List[Dict[str, Any]]:
         """Search arXiv for relevant papers.
 
         Args:
             query: Search query
             max_results: Maximum number of papers
-            days_lookback: Number of days to look back
+            days_lookback: Number of days to look back (default 30 for better coverage)
 
         Returns:
             List of paper dictionaries
         """
-        logger.info(f"Searching arXiv for: {query}")
-
-        categories = self.config.get('research.relevant_categories', [])
+        logger.info(f"Searching arXiv for: {query} (last {days_lookback} days)")
 
         try:
             # Build search query
             search = arxiv.Search(
                 query=query,
-                max_results=max_results * 2,  # Get more to filter
+                max_results=max_results * 3,  # Get more to allow for filtering
                 sort_by=arxiv.SortCriterion.SubmittedDate,
                 sort_order=arxiv.SortOrder.Descending
             )
 
             papers = []
             cutoff_date = datetime.now() - timedelta(days=days_lookback)
+            processed_count = 0
 
             for result in self.arxiv_client.results(search):
-                # Filter by date
-                if result.published < cutoff_date:
+                processed_count += 1
+
+                # Try to filter by date, but be flexible if date is missing
+                try:
+                    if hasattr(result, 'published') and result.published < cutoff_date:
+                        continue
+                except Exception as date_error:
+                    logger.debug(f"Error checking paper date: {date_error}")
+                    # Continue anyway if we can't check the date
+
+                try:
+                    paper_dict = {
+                        'title': result.title if hasattr(result, 'title') else 'Untitled',
+                        'authors': [author.name for author in result.authors] if hasattr(result, 'authors') else ['Unknown'],
+                        'summary': result.summary[:500] if hasattr(result, 'summary') else 'No summary available',
+                        'url': result.entry_id if hasattr(result, 'entry_id') else '',
+                        'pdf_url': result.pdf_url if hasattr(result, 'pdf_url') else '',
+                        'published': result.published.isoformat() if hasattr(result, 'published') else datetime.now().isoformat(),
+                        'categories': result.categories if hasattr(result, 'categories') else [],
+                        'primary_category': result.primary_category if hasattr(result, 'primary_category') else 'cs.LG'
+                    }
+                    papers.append(paper_dict)
+
+                    if len(papers) >= max_results:
+                        break
+                except Exception as paper_error:
+                    logger.debug(f"Error processing paper: {paper_error}")
                     continue
 
-                paper_dict = {
-                    'title': result.title,
-                    'authors': [author.name for author in result.authors],
-                    'summary': result.summary,
-                    'url': result.entry_id,
-                    'pdf_url': result.pdf_url,
-                    'published': result.published.isoformat(),
-                    'categories': result.categories,
-                    'primary_category': result.primary_category
-                }
-                papers.append(paper_dict)
-
-                if len(papers) >= max_results:
+                # Prevent infinite loops
+                if processed_count >= max_results * 5:
+                    logger.warning(f"Processed {processed_count} papers, stopping search")
                     break
 
-            logger.info(f"Found {len(papers)} papers on arXiv")
+            logger.info(f"Found {len(papers)} papers on arXiv from last {days_lookback} days")
             return papers
 
         except Exception as e:
-            logger.error(f"Error searching arXiv: {e}")
+            logger.error(f"Error searching arXiv: {type(e).__name__}: {e}")
             return []
 
     def get_ml_papers_by_topic(self, topic: str) -> List[Dict[str, Any]]:
@@ -112,7 +126,8 @@ class ResearchCollector:
         keywords = self._extract_keywords(competition_title)
         query = " ".join(keywords[:3]) + " machine learning"
 
-        return self.search_arxiv_papers(query, max_results=3)
+        days_lookback = self.config.get('research.days_lookback', 30)
+        return self.search_arxiv_papers(query, max_results=3, days_lookback=days_lookback)
 
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract important keywords from text.
@@ -158,22 +173,40 @@ class ResearchCollector:
         Returns:
             List of paper dictionaries
         """
-        categories = self.config.get('research.relevant_categories', ['cs.LG'])
+        categories = self.config.get('research.relevant_categories', ['cs.LG', 'cs.AI', 'cs.CV'])
+        days_lookback = self.config.get('research.days_lookback', 30)
+
+        logger.info(f"Fetching latest ML research from {len(categories)} categories")
 
         # Search across multiple categories
         all_papers = []
 
-        for category in categories[:2]:  # Limit to avoid overload
+        for category in categories[:3]:  # Limit to top 3 categories
             query = f"cat:{category}"
-            papers = self.search_arxiv_papers(query, max_results=2)
+            papers = self.search_arxiv_papers(query, max_results=3, days_lookback=days_lookback)
             all_papers.extend(papers)
+
+            # Early exit if we have enough papers
+            if len(all_papers) >= max_papers:
+                break
+
+        if not all_papers:
+            # Fallback: try a broader search if category search fails
+            logger.info("Category search yielded no results, trying broader search")
+            all_papers = self.search_arxiv_papers(
+                query="machine learning",
+                max_results=max_papers,
+                days_lookback=days_lookback * 2  # Double the lookback period
+            )
 
         # Remove duplicates and sort by date
         unique_papers = {p['url']: p for p in all_papers}.values()
         sorted_papers = sorted(
             unique_papers,
-            key=lambda x: x['published'],
+            key=lambda x: x.get('published', ''),
             reverse=True
         )
 
-        return list(sorted_papers)[:max_papers]
+        result = list(sorted_papers)[:max_papers]
+        logger.info(f"Returning {len(result)} latest ML research papers")
+        return result
