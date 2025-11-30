@@ -28,10 +28,24 @@ class GeminiGenerator:
 
         genai.configure(api_key=api_key)
 
-        model_name = config.get('gemini.model', 'gemini-pro')
-        self.model = genai.GenerativeModel(model_name)
+        # Use the latest Gemini model names
+        model_name = config.get('gemini.model', 'gemini-1.5-flash')
 
-        logger.info(f"Gemini AI initialized with model: {model_name}")
+        # Validate model name
+        valid_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        if model_name not in valid_models:
+            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash'")
+            model_name = 'gemini-1.5-flash'
+
+        try:
+            self.model = genai.GenerativeModel(model_name)
+            logger.info(f"Gemini AI initialized successfully with model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini model '{model_name}': {e}")
+            # Fallback to gemini-1.5-flash
+            model_name = 'gemini-1.5-flash'
+            self.model = genai.GenerativeModel(model_name)
+            logger.info(f"Fell back to model: {model_name}")
 
     def generate_competition_overview(
         self,
