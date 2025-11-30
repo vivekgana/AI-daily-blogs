@@ -1,0 +1,150 @@
+# Cloud Build configuration for AGI Research Platform
+
+steps:
+  # Build Docker image for Data Collector
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-collector'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-data-collector:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-data-collector:latest'
+      - '-f'
+      - 'gcp/docker/Dockerfile.collector'
+      - '.'
+
+  # Build Docker image for Reasoning Engine
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-reasoning'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-reasoning-engine:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-reasoning-engine:latest'
+      - '-f'
+      - 'gcp/docker/Dockerfile.reasoning'
+      - '.'
+
+  # Build Docker image for API Service
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-api'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-api-service:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/agi-api-service:latest'
+      - '-f'
+      - 'gcp/docker/Dockerfile.api'
+      - '.'
+
+  # Push images to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-collector'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/agi-data-collector']
+    waitFor: ['build-collector']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-reasoning'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/agi-reasoning-engine']
+    waitFor: ['build-reasoning']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-api'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/agi-api-service']
+    waitFor: ['build-api']
+
+  # Deploy Data Collector to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-collector'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'agi-data-collector'
+      - '--image=gcr.io/$PROJECT_ID/agi-data-collector:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--max-instances=50'
+      - '--min-instances=1'
+      - '--timeout=3600'
+      - '--concurrency=100'
+      - '--service-account=agi-data-collector@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars=PROJECT_ID=$PROJECT_ID,ENVIRONMENT=prod'
+      - '--set-secrets=KAGGLE_USERNAME=kaggle-username:latest,KAGGLE_KEY=kaggle-key:latest,GEMINI_API_KEY=gemini-api-key:latest'
+      - '--no-allow-unauthenticated'
+    waitFor: ['push-collector']
+
+  # Deploy Reasoning Engine to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-reasoning'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'agi-reasoning-engine'
+      - '--image=gcr.io/$PROJECT_ID/agi-reasoning-engine:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=8Gi'
+      - '--cpu=4'
+      - '--max-instances=20'
+      - '--min-instances=0'
+      - '--timeout=3600'
+      - '--concurrency=10'
+      - '--service-account=agi-reasoning-engine@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars=PROJECT_ID=$PROJECT_ID,ENVIRONMENT=prod'
+      - '--set-secrets=GEMINI_API_KEY=gemini-api-key:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest'
+      - '--no-allow-unauthenticated'
+    waitFor: ['push-reasoning']
+
+  # Deploy API Service to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-api'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'agi-api-service'
+      - '--image=gcr.io/$PROJECT_ID/agi-api-service:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--max-instances=100'
+      - '--min-instances=2'
+      - '--timeout=300'
+      - '--concurrency=200'
+      - '--service-account=agi-api-service@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars=PROJECT_ID=$PROJECT_ID,ENVIRONMENT=prod'
+      - '--allow-unauthenticated'
+    waitFor: ['push-api']
+
+  # Run smoke tests
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'smoke-test'
+    args:
+      - 'functions'
+      - 'call'
+      - 'run-smoke-tests'
+      - '--region=us-central1'
+      - '--data={"services":["collector","reasoning","api"]}'
+    waitFor: ['deploy-collector', 'deploy-reasoning', 'deploy-api']
+
+timeout: '3600s'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _DEPLOY_ENV: 'prod'
+
+images:
+  - 'gcr.io/$PROJECT_ID/agi-data-collector:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/agi-data-collector:latest'
+  - 'gcr.io/$PROJECT_ID/agi-reasoning-engine:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/agi-reasoning-engine:latest'
+  - 'gcr.io/$PROJECT_ID/agi-api-service:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/agi-api-service:latest'

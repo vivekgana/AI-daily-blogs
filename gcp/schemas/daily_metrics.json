@@ -1,0 +1,56 @@
+[
+  {
+    "name": "metric_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of the metrics"
+  },
+  {
+    "name": "papers_collected",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of papers collected"
+  },
+  {
+    "name": "papers_analyzed",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of papers analyzed"
+  },
+  {
+    "name": "breakthroughs_detected",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of breakthroughs detected"
+  },
+  {
+    "name": "avg_agi_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Average AGI relevance score"
+  },
+  {
+    "name": "avg_asi_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Average ASI relevance score"
+  },
+  {
+    "name": "processing_time_seconds",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total processing time in seconds"
+  },
+  {
+    "name": "api_costs",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Estimated API costs for the day"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the metrics were created"
+  }
+]
