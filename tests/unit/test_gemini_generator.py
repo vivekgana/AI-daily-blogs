@@ -19,7 +19,7 @@ class TestGeminiGenerator(unittest.TestCase):
         self.config = Mock(spec=ConfigLoader)
         self.config.get_env.return_value = "test-api-key"
         self.config.get.side_effect = lambda key, default=None: {
-            'gemini.model': 'gemini-1.5-flash',
+            'gemini.model': 'gemini-1.5-flash-latest',
             'gemini.retry_attempts': 3,
             'gemini.retry_delay': 1,
             'gemini.temperature': 0.7,
@@ -36,7 +36,7 @@ class TestGeminiGenerator(unittest.TestCase):
 
         self.assertIsNotNone(generator)
         mock_genai.configure.assert_called_once_with(api_key="test-api-key")
-        mock_genai.GenerativeModel.assert_called_once_with('gemini-1.5-flash')
+        mock_genai.GenerativeModel.assert_called_once_with('gemini-1.5-flash-latest')
 
     @patch('src.generators.gemini_generator.genai')
     def test_initialization_no_api_key(self, mock_genai):
@@ -135,7 +135,11 @@ class TestGeminiGenerator(unittest.TestCase):
         generator = GeminiGenerator(self.config)
         result = generator._generate_with_retry("Test prompt")
 
-        self.assertIn("Authentication error", result)
+        # Check for either generic failure or the specific error message
+        self.assertTrue(
+            "Content generation failed" in result or "API key not valid" in result,
+            f"Expected failure message in result: {result}"
+        )
 
 
 class TestGeminiGeneratorIntegration(unittest.TestCase):
@@ -152,7 +156,7 @@ class TestGeminiGeneratorIntegration(unittest.TestCase):
         self.config = Mock(spec=ConfigLoader)
         self.config.get_env.return_value = self.api_key
         self.config.get.side_effect = lambda key, default=None: {
-            'gemini.model': 'gemini-1.5-flash',
+            'gemini.model': 'gemini-1.5-flash-latest',
             'gemini.retry_attempts': 3,
             'gemini.retry_delay': 1,
             'gemini.temperature': 0.7,

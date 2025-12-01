@@ -29,23 +29,41 @@ class GeminiGenerator:
         genai.configure(api_key=api_key)
 
         # Use the latest Gemini model names
-        model_name = config.get('gemini.model', 'gemini-1.5-flash')
+        # Updated model names for newer API versions
+        model_name = config.get('gemini.model', 'gemini-1.5-flash-latest')
 
-        # Validate model name
-        valid_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        # Validate model name - use latest stable model names
+        valid_models = [
+            'gemini-1.5-flash-latest',
+            'gemini-1.5-pro-latest',
+            'gemini-pro',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro'
+        ]
         if model_name not in valid_models:
-            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash'")
-            model_name = 'gemini-1.5-flash'
+            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash-latest'")
+            model_name = 'gemini-1.5-flash-latest'
 
         try:
             self.model = genai.GenerativeModel(model_name)
             logger.info(f"Gemini AI initialized successfully with model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini model '{model_name}': {e}")
-            # Fallback to gemini-1.5-flash
-            model_name = 'gemini-1.5-flash'
-            self.model = genai.GenerativeModel(model_name)
-            logger.info(f"Fell back to model: {model_name}")
+            # Try fallback models in order
+            fallback_models = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro']
+            for fallback in fallback_models:
+                try:
+                    logger.info(f"Attempting fallback to model: {fallback}")
+                    self.model = genai.GenerativeModel(fallback)
+                    logger.info(f"Successfully fell back to model: {fallback}")
+                    model_name = fallback
+                    break
+                except Exception as fallback_error:
+                    logger.warning(f"Fallback to {fallback} failed: {fallback_error}")
+                    continue
+            else:
+                # If all fallbacks fail, raise the original error
+                raise ValueError(f"Failed to initialize any Gemini model. Last error: {e}")
 
     def generate_competition_overview(
         self,
