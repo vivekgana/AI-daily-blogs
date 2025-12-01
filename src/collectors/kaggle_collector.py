@@ -200,16 +200,25 @@ class KaggleCollector:
 
             if leaderboard:
                 entries = []
-                for entry in leaderboard:
+                for idx, entry in enumerate(leaderboard):
                     try:
+                        # Extract fields with proper fallbacks
+                        # Use actual rank if available, otherwise use index + 1
+                        rank = getattr(entry, 'rank', idx + 1)
+                        team_id = getattr(entry, 'teamId', 0)
+                        team_name = getattr(entry, 'teamName', 'Unknown')
+                        score = getattr(entry, 'score', 0.0)
+                        submission_date = getattr(entry, 'submissionDate', None)
+
                         entries.append({
-                            'rank': entry.teamId if hasattr(entry, 'teamId') else 0,
-                            'teamName': entry.teamName if hasattr(entry, 'teamName') else 'Unknown',
-                            'score': entry.score if hasattr(entry, 'score') else 0.0,
-                            'submissionDate': entry.submissionDate if hasattr(entry, 'submissionDate') else None
+                            'rank': rank,
+                            'teamId': team_id,
+                            'teamName': team_name,
+                            'score': score,
+                            'submissionDate': submission_date
                         })
                     except Exception as entry_error:
-                        logger.debug(f"Error processing leaderboard entry: {entry_error}")
+                        logger.debug(f"Error processing leaderboard entry {idx}: {entry_error}")
                         continue
 
                 if entries:
@@ -225,6 +234,9 @@ class KaggleCollector:
 
         except Exception as e:
             logger.warning(f"Could not fetch leaderboard for {competition_id}: {type(e).__name__}: {e}")
+            # Log more details for debugging
+            import traceback
+            logger.debug(f"Leaderboard fetch traceback: {traceback.format_exc()}")
             return None
 
     def get_competition_kernels(self, competition_id: str, max_kernels: int = 10) -> List[Dict[str, Any]]:
