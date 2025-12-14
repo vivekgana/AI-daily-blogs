@@ -1,0 +1,194 @@
+name: Test On-Demand
+
+# This workflow can be triggered manually to test specific components
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - kaggle
+          - github
+          - research
+          - credentials
+      verbose:
+        description: 'Verbose output'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  run-selected-tests:
+    name: Run ${{ github.event.inputs.test_suite }} Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-html
+
+    - name: Configure Kaggle credentials
+      if: ${{ github.event.inputs.test_suite != 'unit' }}
+      env:
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
+      run: |
+        mkdir -p ~/.kaggle
+        echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_PASSWORD }}"}' > ~/.kaggle/kaggle.json
+        chmod 600 ~/.kaggle/kaggle.json
+
+    - name: Run All Tests
+      if: ${{ github.event.inputs.test_suite == 'all' }}
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_ACTION }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/ $VERBOSE \
+          --cov=src \
+          --cov-report=term-missing \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Run Unit Tests Only
+      if: ${{ github.event.inputs.test_suite == 'unit' }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/unit/ $VERBOSE \
+          --cov=src \
+          --cov-report=term-missing \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Run Integration Tests Only
+      if: ${{ github.event.inputs.test_suite == 'integration' }}
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_ACTION }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/integration/ $VERBOSE \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Run Kaggle Tests Only
+      if: ${{ github.event.inputs.test_suite == 'kaggle' }}
+      env:
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/integration/test_collectors_integration.py::TestKaggleCollectorIntegration $VERBOSE \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Run GitHub Tests Only
+      if: ${{ github.event.inputs.test_suite == 'github' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_ACTION }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/integration/test_collectors_integration.py::TestGitHubCollectorIntegration $VERBOSE \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Run Research Tests Only
+      if: ${{ github.event.inputs.test_suite == 'research' }}
+      run: |
+        VERBOSE=""
+        if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+          VERBOSE="-vv -s"
+        fi
+        pytest tests/integration/test_collectors_integration.py::TestResearchCollectorIntegration $VERBOSE \
+          --html=test-report.html \
+          --self-contained-html
+
+    - name: Test Credentials
+      if: ${{ github.event.inputs.test_suite == 'credentials' }}
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
+        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_ACTION }}
+      run: |
+        python << 'EOF'
+        import os
+
+        print("\n" + "=" * 70)
+        print("CREDENTIAL CHECK")
+        print("=" * 70)
+
+        credentials = {
+            'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY'),
+            'KAGGLE_USERNAME': os.getenv('KAGGLE_USERNAME'),
+            'KAGGLE_KEY': os.getenv('KAGGLE_KEY'),
+            'GITHUB_TOKEN': os.getenv('GITHUB_TOKEN'),
+        }
+
+        for name, value in credentials.items():
+            status = "✅" if value else "❌"
+            length = f"(length: {len(value)})" if value else ""
+            print(f"{status} {name}: {'Set' if value else 'Not set'} {length}")
+
+        missing = [k for k, v in credentials.items() if not v]
+        if missing:
+            print(f"\n❌ Missing: {', '.join(missing)}")
+            exit(1)
+        else:
+            print("\n✅ All credentials configured!")
+        EOF
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ github.event.inputs.test_suite }}
+        path: |
+          test-report.html
+          htmlcov/
+
+    - name: Create test summary
+      if: always()
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Suite:** ${{ github.event.inputs.test_suite }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Verbose:** ${{ github.event.inputs.verbose }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Check artifacts for detailed test reports." >> $GITHUB_STEP_SUMMARY
