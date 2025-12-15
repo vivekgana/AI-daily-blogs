@@ -1,0 +1,114 @@
+name: Trigger Tests (Manual)
+
+# This workflow triggers the test-on-demand workflow
+# It uses the MY_GITHUB_ACTION secret from repository secrets
+# No local token needed!
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        type: choice
+        options:
+          - credentials
+          - all
+          - unit
+          - integration
+          - kaggle
+          - github
+          - research
+        default: 'credentials'
+
+jobs:
+  trigger-tests:
+    name: Trigger Test Workflow
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Trigger test-on-demand workflow
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.MY_GITHUB_ACTION }}
+        script: |
+          const testSuite = '${{ github.event.inputs.test_suite }}';
+
+          console.log('='.repeat(70));
+          console.log(' TRIGGERING TEST WORKFLOW');
+          console.log('='.repeat(70));
+          console.log(`Repository: ${context.repo.owner}/${context.repo.repo}`);
+          console.log(`Workflow: test-on-demand.yml`);
+          console.log(`Branch: ${context.ref}`);
+          console.log(`Test Suite: ${testSuite}`);
+          console.log('='.repeat(70));
+
+          try {
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-on-demand.yml',
+              ref: context.ref.replace('refs/heads/', ''),
+              inputs: {
+                test_suite: testSuite,
+                verbose: 'false'
+              }
+            });
+
+            console.log('\n✅ SUCCESS! Test workflow triggered successfully!');
+            console.log('\nView workflow runs:');
+            console.log(`https://github.com/${context.repo.owner}/${context.repo.repo}/actions`);
+            console.log('\nThe workflow will start in a few seconds.');
+
+            core.summary.addRaw('## ✅ Test Workflow Triggered\n\n');
+            core.summary.addRaw(`**Test Suite:** ${testSuite}\n\n`);
+            core.summary.addRaw(`**Branch:** ${context.ref}\n\n`);
+            core.summary.addRaw(`[View Workflow Runs →](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/test-on-demand.yml)\n`);
+            await core.summary.write();
+
+          } catch (error) {
+            console.error('\n❌ ERROR: Failed to trigger workflow');
+            console.error(`Status: ${error.status}`);
+            console.error(`Message: ${error.message}`);
+
+            if (error.status === 401) {
+              console.error('\nAuthentication failed. Check that MY_GITHUB_ACTION secret:');
+              console.error('  1. Is configured in repository secrets');
+              console.error('  2. Has "repo" and "workflow" scopes');
+              console.error('  3. Is not expired');
+            } else if (error.status === 404) {
+              console.error('\nWorkflow not found. Check that:');
+              console.error('  1. test-on-demand.yml exists on this branch');
+              console.error('  2. Branch name is correct');
+            }
+
+            core.setFailed(`Failed to trigger workflow: ${error.message}`);
+            throw error;
+          }
+
+    - name: Wait for workflow to start
+      run: |
+        echo "Waiting 10 seconds for workflow to start..."
+        sleep 10
+
+    - name: Show next steps
+      run: |
+        echo ""
+        echo "========================================================================"
+        echo " NEXT STEPS"
+        echo "========================================================================"
+        echo ""
+        echo "1. Go to Actions tab:"
+        echo "   https://github.com/${{ github.repository }}/actions"
+        echo ""
+        echo "2. Look for 'Test On-Demand' workflow (should be at the top)"
+        echo ""
+        echo "3. Click on it to view results"
+        echo ""
+        echo "Expected results:"
+        echo "  - credentials: All 4 secrets configured ✅"
+        echo "  - all: 40+ tests passing ✅"
+        echo ""
