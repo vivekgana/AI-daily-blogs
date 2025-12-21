@@ -19,7 +19,7 @@ class TestGeminiGenerator(unittest.TestCase):
         self.config = Mock(spec=ConfigLoader)
         self.config.get_env.return_value = "test-api-key"
         self.config.get.side_effect = lambda key, default=None: {
-            'gemini.model': 'gemini-1.5-flash-latest',
+            'gemini.model': 'gemini-1.5-flash',
             'gemini.retry_attempts': 3,
             'gemini.retry_delay': 1,
             'gemini.temperature': 0.7,
@@ -36,7 +36,7 @@ class TestGeminiGenerator(unittest.TestCase):
 
         self.assertIsNotNone(generator)
         mock_genai.configure.assert_called_once_with(api_key="test-api-key")
-        mock_genai.GenerativeModel.assert_called_once_with('gemini-1.5-flash-latest')
+        mock_genai.GenerativeModel.assert_called_once_with('gemini-1.5-flash')
 
     @patch('src.generators.gemini_generator.genai')
     def test_initialization_no_api_key(self, mock_genai):
@@ -156,7 +156,7 @@ class TestGeminiGeneratorIntegration(unittest.TestCase):
         self.config = Mock(spec=ConfigLoader)
         self.config.get_env.return_value = self.api_key
         self.config.get.side_effect = lambda key, default=None: {
-            'gemini.model': 'gemini-1.5-flash-latest',
+            'gemini.model': 'gemini-1.5-flash',
             'gemini.retry_attempts': 3,
             'gemini.retry_delay': 1,
             'gemini.temperature': 0.7,
