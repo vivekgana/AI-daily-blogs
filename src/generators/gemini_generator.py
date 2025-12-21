@@ -28,29 +28,28 @@ class GeminiGenerator:
 
         genai.configure(api_key=api_key)
 
-        # Use the latest Gemini model names
-        # Updated model names for newer API versions
-        model_name = config.get('gemini.model', 'gemini-1.5-flash-latest')
+        # Use stable Gemini model names (v1beta API)
+        # Note: -latest suffix removed as it's deprecated in v1beta
+        model_name = config.get('gemini.model', 'gemini-1.5-flash')
 
-        # Validate model name - use latest stable model names
+        # Validate model name - use stable model names without -latest suffix
         valid_models = [
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-pro-latest',
-            'gemini-pro',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro'
+            'gemini-1.5-flash',      # Recommended: Fast and efficient
+            'gemini-1.5-pro',        # More capable, slower
+            'gemini-pro',            # Older stable model
+            'gemini-1.0-pro'         # Legacy support
         ]
         if model_name not in valid_models:
-            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash-latest'")
-            model_name = 'gemini-1.5-flash-latest'
+            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash'")
+            model_name = 'gemini-1.5-flash'
 
         try:
             self.model = genai.GenerativeModel(model_name)
             logger.info(f"Gemini AI initialized successfully with model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini model '{model_name}': {e}")
-            # Try fallback models in order
-            fallback_models = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro']
+            # Try fallback models in order (without -latest suffix)
+            fallback_models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
             for fallback in fallback_models:
                 try:
                     logger.info(f"Attempting fallback to model: {fallback}")
