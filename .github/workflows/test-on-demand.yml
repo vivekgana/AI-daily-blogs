@@ -42,7 +42,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-html
 
     - name: Configure Kaggle credentials
       if: ${{ github.event.inputs.test_suite != 'unit' }}
@@ -61,12 +60,14 @@ jobs:
         KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
         KAGGLE_KEY: ${{ secrets.KAGGLE_PASSWORD }}
         GITHUB_TOKEN: ${{ secrets.MY_GITHUB_ACTION }}
+        PYTEST_XDIST_WORKER_COUNT: 3
       run: |
         VERBOSE=""
         if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
           VERBOSE="-vv -s"
         fi
-        pytest tests/ $VERBOSE \
+        pytest tests/ $VERBOSE -n 3 \
+          --dist loadfile \
           --cov=src \
           --cov-report=term-missing \
           --html=test-report.html \
@@ -79,11 +80,14 @@ jobs:
         if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
           VERBOSE="-vv -s"
         fi
-        pytest tests/unit/ $VERBOSE \
+        pytest tests/unit/ $VERBOSE -n 3 \
+          --dist loadfile \
           --cov=src \
           --cov-report=term-missing \
           --html=test-report.html \
           --self-contained-html
+      env:
+        PYTEST_XDIST_WORKER_COUNT: 3
 
     - name: Run Integration Tests Only
       if: ${{ github.event.inputs.test_suite == 'integration' }}
