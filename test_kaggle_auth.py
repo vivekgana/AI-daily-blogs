@@ -14,6 +14,11 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Fix Unicode encoding for Windows
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+
 # Load .env file if it exists
 env_path = Path(__file__).parent / ".env"
 if env_path.exists():
