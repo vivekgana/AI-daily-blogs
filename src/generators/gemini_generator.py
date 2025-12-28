@@ -20,6 +20,7 @@ class GeminiGenerator:
             config: Configuration loader instance
         """
         self.config = config
+        self.last_request_time = 0  # Track last API call time for rate limiting
 
         # Configure Gemini API
         api_key = config.get_env('GEMINI_API_KEY')
@@ -315,7 +316,7 @@ Generate predictions covering:
         ])
 
     def _generate_with_retry(self, prompt: str) -> str:
-        """Generate content with retry logic.
+        """Generate content with retry logic and rate limit handling.
 
         Args:
             prompt: Generation prompt
@@ -324,12 +325,27 @@ Generate predictions covering:
             Generated text
         """
         max_retries = self.config.get('gemini.retry_attempts', 3)
-        retry_delay = self.config.get('gemini.retry_delay', 2)
+        retry_delay = self.config.get('gemini.retry_delay', 15)  # Default 15s for rate limits
+
+        # Rate limit tracking
+        rate_limit_delay = self.config.get('gemini.rate_limit_delay', 15)  # 15s between calls = 4 calls/minute (under 5/min limit)
 
         last_error = None
         for attempt in range(max_retries):
             try:
                 logger.debug(f"Attempt {attempt + 1}/{max_retries} for content generation")
+
+                # Enforce rate limiting: ensure minimum delay between API calls
+                # Free tier: 5 requests per minute, so wait at least 15 seconds between calls
+                current_time = time.time()
+                time_since_last_request = current_time - self.last_request_time
+                if self.last_request_time > 0 and time_since_last_request < rate_limit_delay:
+                    wait_time = rate_limit_delay - time_since_last_request
+                    logger.info(f"Rate limiting: waiting {wait_time:.1f}s before next API call")
+                    time.sleep(wait_time)
+
+                # Make the API call
+                self.last_request_time = time.time()
                 response = self.model.generate_content(prompt)
 
                 # Check if response has text
@@ -352,8 +368,28 @@ Generate predictions covering:
                 last_error = f"AttributeError: {str(e)}"
 
             except Exception as e:
+                error_str = str(e)
                 logger.warning(f"Generation attempt {attempt + 1} failed: {type(e).__name__}: {e}")
-                last_error = f"{type(e).__name__}: {str(e)}"
+                last_error = f"{type(e).__name__}: {error_str}"
+
+                # Check if it's a rate limit error (ResourceExhausted or 429)
+                if 'ResourceExhausted' in str(type(e).__name__) or '429' in error_str or 'quota' in error_str.lower():
+                    # Extract retry delay from error message if available
+                    import re
+                    retry_match = re.search(r'retry in (\d+\.?\d*)s', error_str)
+                    if retry_match:
+                        suggested_delay = float(retry_match.group(1))
+                        logger.warning(f"Rate limit exceeded. API suggests waiting {suggested_delay}s")
+                        # Wait the suggested time plus a buffer
+                        sleep_time = suggested_delay + 5
+                    else:
+                        # Default: wait 60 seconds for rate limit reset
+                        sleep_time = 60
+
+                    logger.info(f"Rate limit hit. Waiting {sleep_time}s before retry...")
+                    if attempt < max_retries - 1:
+                        time.sleep(sleep_time)
+                    continue
 
             if attempt < max_retries - 1:
                 sleep_time = retry_delay * (attempt + 1)

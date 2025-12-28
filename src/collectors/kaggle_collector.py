@@ -27,8 +27,11 @@ class KaggleCollector:
         self.api.authenticate()
         logger.info("Kaggle API authenticated successfully")
 
-    def get_active_competitions(self) -> List[Dict[str, Any]]:
-        """Get list of active competitions.
+    def get_active_competitions(self, filter_featured=True) -> List[Dict[str, Any]]:
+        """Get list of active competitions, optionally filtered for Featured competitions.
+
+        Args:
+            filter_featured: If True, only return Featured competitions
 
         Returns:
             List of competition dictionaries
@@ -50,11 +53,37 @@ class KaggleCollector:
                     'teamCount': comp.teamCount,
                     'userHasEntered': comp.userHasEntered,
                     'description': comp.description if hasattr(comp, 'description') else '',
-                    'tags': comp.tags if hasattr(comp, 'tags') else []
+                    'tags': comp.tags if hasattr(comp, 'tags') else [],
+                    'enabledDate': comp.enabledDate if hasattr(comp, 'enabledDate') else None,
+                    'maxDailySubmissions': comp.maxDailySubmissions if hasattr(comp, 'maxDailySubmissions') else None,
+                    'maxTeamSize': comp.maxTeamSize if hasattr(comp, 'maxTeamSize') else None,
                 }
-                active_comps.append(comp_dict)
 
-            logger.info(f"Found {len(active_comps)} active competitions")
+                # Filter for Featured competitions if requested
+                if filter_featured:
+                    # Featured competitions have category 'featured'
+                    # Some competitions may have different categorization
+                    category = str(comp.category).lower() if hasattr(comp, 'category') else ''
+
+                    # Check if competition is featured
+                    # Kaggle uses 'featured' category for official competitions
+                    is_featured = (
+                        'featured' in category or
+                        category == 'featured' or
+                        (hasattr(comp, 'isKernelsSubmissionsOnly') and not comp.isKernelsSubmissionsOnly)
+                    )
+
+                    if is_featured:
+                        active_comps.append(comp_dict)
+                        logger.debug(f"Featured competition found: {comp_dict['title']} (category: {category})")
+                else:
+                    active_comps.append(comp_dict)
+
+            if filter_featured:
+                logger.info(f"Found {len(active_comps)} Featured competitions out of {len(competitions)} total")
+            else:
+                logger.info(f"Found {len(active_comps)} active competitions")
+
             return active_comps
 
         except Exception as e:
@@ -277,6 +306,148 @@ class KaggleCollector:
 
         except Exception as e:
             logger.warning(f"Could not fetch kernels for {competition_id}: {type(e).__name__}: {e}")
+            return []
+
+    def get_daily_submission_stats(self, competition_id: str) -> Dict[str, Any]:
+        """Get daily submission statistics for a competition.
+
+        Args:
+            competition_id: Competition ID
+
+        Returns:
+            Dictionary with submission statistics
+        """
+        try:
+            logger.info(f"Fetching submission statistics for {competition_id}...")
+
+            # Get competition details to find max daily submissions
+            try:
+                comp_list = self.api.competition_list_cli(competition=competition_id)
+                comp_details = comp_list[0] if comp_list else None
+            except:
+                comp_details = None
+
+            # Get leaderboard to analyze submission patterns
+            leaderboard = self.get_competition_leaderboard(competition_id)
+
+            stats = {
+                'competition_id': competition_id,
+                'max_daily_submissions': None,
+                'total_submissions': 0,
+                'unique_submitters': 0,
+                'avg_submissions_per_team': 0,
+                'submission_trend': 'unknown'
+            }
+
+            # Extract max daily submissions limit
+            if comp_details and hasattr(comp_details, 'maxDailySubmissions'):
+                stats['max_daily_submissions'] = comp_details.maxDailySubmissions
+                logger.debug(f"Max daily submissions: {stats['max_daily_submissions']}")
+
+            # Analyze leaderboard for submission patterns
+            if leaderboard is not None and not leaderboard.empty:
+                stats['unique_submitters'] = len(leaderboard)
+
+                # If leaderboard has submission counts, calculate average
+                if 'submissions' in leaderboard.columns:
+                    stats['total_submissions'] = leaderboard['submissions'].sum()
+                    stats['avg_submissions_per_team'] = leaderboard['submissions'].mean()
+
+                logger.info(f"Submission stats: {stats['unique_submitters']} submitters")
+            else:
+                logger.info(f"No leaderboard data available for submission analysis")
+
+            return stats
+
+        except Exception as e:
+            logger.warning(f"Error fetching submission stats for {competition_id}: {type(e).__name__}: {e}")
+            return {
+                'competition_id': competition_id,
+                'max_daily_submissions': None,
+                'total_submissions': 0,
+                'unique_submitters': 0,
+                'avg_submissions_per_team': 0,
+                'submission_trend': 'error'
+            }
+
+    def get_algorithms_from_submissions(self, competition_id: str, max_kernels: int = 20) -> List[str]:
+        """Extract algorithms from recent submission kernels when leaderboard is unavailable.
+
+        Args:
+            competition_id: Competition ID
+            max_kernels: Maximum number of kernels to analyze
+
+        Returns:
+            List of detected algorithm names
+        """
+        try:
+            logger.info(f"Extracting algorithms from submissions for {competition_id}...")
+
+            # Get recent kernels (notebooks/scripts)
+            kernels = self.get_competition_kernels(competition_id, max_kernels)
+
+            if not kernels:
+                logger.info(f"No kernels available for algorithm extraction: {competition_id}")
+                return []
+
+            # Common ML/AI algorithm keywords to detect
+            algorithm_patterns = {
+                # Deep Learning
+                'transformer', 'bert', 'gpt', 'llm', 'large language model',
+                'attention mechanism', 'self-attention', 'multi-head attention',
+                'vision transformer', 'vit', 'clip', 'dall-e', 'stable diffusion',
+
+                # Neural Networks
+                'neural network', 'deep learning', 'cnn', 'convolutional',
+                'rnn', 'lstm', 'gru', 'recurrent', 'autoencoder', 'gan',
+                'resnet', 'efficientnet', 'mobilenet', 'densenet',
+
+                # Ensemble Methods
+                'xgboost', 'lightgbm', 'catboost', 'gradient boosting',
+                'random forest', 'ensemble', 'stacking', 'blending',
+                'bagging', 'boosting', 'adaboost',
+
+                # Reinforcement Learning
+                'reinforcement learning', 'q-learning', 'dqn', 'policy gradient',
+                'actor-critic', 'ppo', 'a3c', 'ddpg', 'sac',
+
+                # Meta-Learning
+                'meta-learning', 'few-shot', 'zero-shot', 'one-shot',
+                'transfer learning', 'fine-tuning', 'prompt engineering',
+                'in-context learning', 'chain of thought',
+
+                # Classic ML
+                'svm', 'support vector', 'decision tree', 'knn',
+                'k-means', 'naive bayes', 'logistic regression',
+                'linear regression', 'ridge', 'lasso',
+
+                # Other Advanced
+                'neural architecture search', 'nas', 'automl',
+                'multi-modal', 'multimodal', 'contrastive learning',
+                'self-supervised', 'semi-supervised', 'active learning'
+            }
+
+            detected_algorithms = set()
+
+            for kernel in kernels:
+                # Search in title for algorithm mentions
+                title = kernel.get('title', '').lower()
+                for pattern in algorithm_patterns:
+                    if pattern in title:
+                        detected_algorithms.add(pattern.title())
+                        logger.debug(f"Found algorithm '{pattern}' in kernel: {kernel.get('title')}")
+
+            algorithms_list = sorted(list(detected_algorithms))
+
+            if algorithms_list:
+                logger.info(f"Detected {len(algorithms_list)} algorithms from {len(kernels)} kernels: {', '.join(algorithms_list[:5])}...")
+            else:
+                logger.info(f"No algorithms detected from kernel titles for {competition_id}")
+
+            return algorithms_list
+
+        except Exception as e:
+            logger.warning(f"Error extracting algorithms from submissions: {type(e).__name__}: {e}")
             return []
 
     def get_new_competitions(self, days: int = 1) -> List[Dict[str, Any]]:
