@@ -6,11 +6,25 @@ Quick test to verify Kaggle credentials work.
 """
 
 import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Fix Unicode encoding for Windows
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+
+# Load .env file if it exists
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+    print("✅ Loaded credentials from .env file\n")
 
 
 def test_kaggle():
     """Test Kaggle authentication."""
-    print("\n🔍 Testing Kaggle Authentication...\n")
+    print("🔍 Testing Kaggle Authentication...\n")
 
     # Check credentials
     username = os.getenv('KAGGLE_USERNAME')

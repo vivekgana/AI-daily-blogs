@@ -12,6 +12,12 @@ Usage:
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file if it exists
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))

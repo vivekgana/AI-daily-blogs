@@ -3,6 +3,7 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, Any
+from dotenv import load_dotenv
 
 
 class ConfigLoader:
@@ -14,6 +15,12 @@ class ConfigLoader:
         Args:
             config_path: Path to config file. If None, uses default.
         """
+        # Load environment variables from .env file (if it exists)
+        # This allows local testing with .env file while GitHub Actions uses secrets
+        env_path = Path(__file__).parent.parent.parent / ".env"
+        if env_path.exists():
+            load_dotenv(env_path)
+
         if config_path is None:
             config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
 
