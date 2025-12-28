@@ -85,7 +85,7 @@ blog:
 
 # Gemini AI Configuration
 gemini:
-  model: "gemini-1.5-flash-latest"  # Use latest stable model
+  model: "gemini-2.5-flash"  # Stable version of Gemini 2.5 Flash (recommended)
   temperature: 0.7
   max_tokens: 8000
   retry_attempts: 3

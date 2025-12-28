@@ -28,28 +28,32 @@ class GeminiGenerator:
 
         genai.configure(api_key=api_key)
 
-        # Use stable Gemini model names (v1beta API)
-        # Note: -latest suffix removed as it's deprecated in v1beta
-        model_name = config.get('gemini.model', 'gemini-1.5-flash')
+        # Use stable Gemini model names
+        # Gemini 2.5 is the latest stable version (as of 2025)
+        model_name = config.get('gemini.model', 'gemini-2.5-flash')
 
-        # Validate model name - use stable model names without -latest suffix
+        # Validate model name - use stable model names
         valid_models = [
-            'gemini-1.5-flash',      # Recommended: Fast and efficient
-            'gemini-1.5-pro',        # More capable, slower
-            'gemini-pro',            # Older stable model
-            'gemini-1.0-pro'         # Legacy support
+            'gemini-2.5-flash',      # Recommended: Latest fast model
+            'gemini-2.5-pro',        # Latest pro model
+            'gemini-2.0-flash',      # Previous generation
+            'gemini-flash-latest',   # Auto-updated to latest
+            'gemini-pro-latest',     # Auto-updated to latest
+            'gemini-1.5-flash',      # Legacy support
+            'gemini-1.5-pro',        # Legacy support
+            'gemini-pro'             # Legacy support
         ]
         if model_name not in valid_models:
-            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-1.5-flash'")
-            model_name = 'gemini-1.5-flash'
+            logger.warning(f"Invalid model name '{model_name}', defaulting to 'gemini-2.5-flash'")
+            model_name = 'gemini-2.5-flash'
 
         try:
             self.model = genai.GenerativeModel(model_name)
             logger.info(f"Gemini AI initialized successfully with model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini model '{model_name}': {e}")
-            # Try fallback models in order (without -latest suffix)
-            fallback_models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
+            # Try fallback models in order
+            fallback_models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash']
             for fallback in fallback_models:
                 try:
                     logger.info(f"Attempting fallback to model: {fallback}")
