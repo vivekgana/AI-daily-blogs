@@ -21,7 +21,9 @@ class AGIKeywords:
         'general intelligence',
         'artificial superintelligence',
         'asi',
-        'general purpose ai'
+        'general purpose ai',
+        'strong ai',
+        'human-level ai'
     ]
 
     CAPABILITIES = [
@@ -32,7 +34,11 @@ class AGIKeywords:
         'continual learning',
         'lifelong learning',
         'multitask learning',
-        'curriculum learning'
+        'curriculum learning',
+        'one-shot learning',
+        'cross-domain learning',
+        'domain adaptation',
+        'generalization'
     ]
 
     REASONING = [
@@ -50,7 +56,11 @@ class AGIKeywords:
         'large language models',
         'multimodal models',
         'neuro-symbolic',
-        'hybrid ai'
+        'hybrid ai',
+        'transformer models',
+        'attention mechanisms',
+        'neural architecture search',
+        'automl'
     ]
 
     ALIGNMENT_SAFETY = [
@@ -67,7 +77,11 @@ class AGIKeywords:
         'emergent capabilities',
         'emergent behavior',
         'scaling laws',
-        'in-context learning'
+        'in-context learning',
+        'prompt engineering',
+        'chain of thought',
+        'self-improvement',
+        'recursive self-improvement'
     ]
 
     @classmethod
@@ -195,8 +209,11 @@ class ArxivAGICollector:
             Paper dictionary
         """
         try:
-            # Extract paper ID
-            paper_id = result.entry_id.split('/')[-1].replace('v', '')
+            # Extract paper ID (remove version suffix like 'v1', 'v2', etc.)
+            paper_id = result.entry_id.split('/')[-1]
+            # Remove version suffix: 2301.12345v1 -> 2301.12345
+            if 'v' in paper_id:
+                paper_id = paper_id.split('v')[0]
 
             # Calculate AGI relevance indicators
             agi_indicators = self._calculate_agi_indicators(

@@ -100,9 +100,27 @@ The workflow expects these GitHub Secrets:
 
 ---
 
-## Verify Credentials Locally (Optional)
+## Quick Test Scripts
 
-If you want to test locally before updating GitHub Secrets:
+We've provided two test scripts to verify your credentials work before updating GitHub Secrets:
+
+### Option 1: Simple Quick Test
+```bash
+python test_kaggle_simple.py
+```
+Fast credential check with pass/fail output.
+
+### Option 2: Comprehensive Test
+```bash
+python test_kaggle_auth.py
+```
+Detailed test with step-by-step verification, creates kaggle.json if needed, and tests API calls.
+
+---
+
+## Verify Credentials Locally (Manual Method)
+
+If you want to test manually before updating GitHub Secrets:
 
 ### Windows (PowerShell):
 ```powershell
